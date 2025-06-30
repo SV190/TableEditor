@@ -27,12 +27,20 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       console.log('Processing POST request');
-      const { username, password } = req.body;
+      let body = req.body;
+      if (!body) {
+        const buffers = [];
+        for await (const chunk of req) {
+          buffers.push(chunk);
+        }
+        body = JSON.parse(Buffer.concat(buffers).toString());
+      }
+      const { username, password } = body;
 
       console.log('Login attempt:', { 
         username, 
         password: password ? '***' : 'undefined',
-        bodyKeys: Object.keys(req.body || {})
+        bodyKeys: Object.keys(body || {})
       });
 
       // Проверяем наличие обязательных полей
