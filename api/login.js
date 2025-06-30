@@ -33,7 +33,14 @@ export default async function handler(req, res) {
         for await (const chunk of req) {
           buffers.push(chunk);
         }
-        body = JSON.parse(Buffer.concat(buffers).toString());
+        const rawBody = Buffer.concat(buffers).toString();
+        console.log('Raw request body:', rawBody);
+        try {
+          body = JSON.parse(rawBody);
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          return res.status(400).json({ error: 'Invalid JSON in request body' });
+        }
       }
       const { username, password } = body;
 
@@ -102,7 +109,7 @@ export default async function handler(req, res) {
     }
   } else {
     // Для других методов
-    console.log('Unsupported method:', req.method);
+    console.log('Unsupported method:', req.method, 'Headers:', req.headers, 'Body:', req.body, 'Query:', req.query);
     res.status(405).json({ error: 'Метод не поддерживается' });
   }
 } 
