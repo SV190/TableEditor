@@ -8,23 +8,15 @@ const DROPBOX_CLIENT_SECRET = process.env.DROPBOX_CLIENT_SECRET;
 
 function verifyToken(req) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   const token = authHeader.split(' ')[1];
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (error) {
-    return null;
-  }
+  try { return jwt.verify(token, JWT_SECRET); } catch { return null; }
 }
 
 async function refreshAccessToken(refreshToken) {
   const response = await fetch('https://api.dropboxapi.com/oauth2/token', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: DROPBOX_CLIENT_ID,
@@ -32,10 +24,7 @@ async function refreshAccessToken(refreshToken) {
       refresh_token: refreshToken,
     }),
   });
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Dropbox token refresh failed: ${error}`);
-  }
+  if (!response.ok) throw new Error('Dropbox token refresh failed');
   return await response.json();
 }
 
@@ -56,9 +45,7 @@ async function getDropboxFolders(accessToken, path = '') {
       include_non_downloadable_files: true,
     }),
   });
-  if (!response.ok) {
-    throw new Error('Failed to get Dropbox folders');
-  }
+  if (!response.ok) throw new Error('Failed to get Dropbox folders');
   const data = await response.json();
   return data.entries.filter(entry => entry[".tag"] === "folder").map(entry => ({
     id: entry.id,
@@ -72,20 +59,14 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   const user = verifyToken(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Требуется авторизация' });
-  }
+  if (!user) return res.status(401).json({ error: 'Требуется авторизация' });
   const path = req.query.path || '';
   try {
     const tokenData = await getDropboxToken(user.userId);
-    if (!tokenData) {
-      return res.status(401).json({ error: 'Dropbox не подключен' });
-    }
+    if (!tokenData) return res.status(401).json({ error: 'Dropbox не подключен' });
     let accessToken = tokenData.access_token;
     if (!accessToken || (tokenData.expires_at && new Date(tokenData.expires_at) <= new Date())) {
       const refreshResult = await refreshAccessToken(tokenData.refresh_token);
