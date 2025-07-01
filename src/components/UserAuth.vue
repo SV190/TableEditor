@@ -64,6 +64,10 @@
             {{ error }}
           </div>
         </form>
+        <div class="hello-test-block">
+          <button @click="callHello" class="hello-btn">Проверить /api/hello</button>
+          <div v-if="helloMessage" class="hello-message">{{ helloMessage }}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -77,6 +81,19 @@ const { login, isLoading } = useAuth()
 const email = ref('')
 const password = ref('')
 const error = ref('')
+
+const helloMessage = ref('')
+async function callHello() {
+  helloMessage.value = 'Загрузка...'
+  try {
+    const res = await fetch('/api/hello')
+    if (!res.ok) throw new Error('Ошибка запроса: ' + res.status)
+    const data = await res.json()
+    helloMessage.value = data.message
+  } catch (e) {
+    helloMessage.value = 'Ошибка: ' + e.message
+  }
+}
 
 const handleLogin = async () => {
   error.value = ''
@@ -236,5 +253,29 @@ const handleLogin = async () => {
   border-radius: 0.375rem;
   margin-top: 1rem;
   font-size: 0.875rem;
+}
+
+.hello-test-block {
+  margin-top: 2rem;
+  text-align: center;
+}
+.hello-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+.hello-btn:hover {
+  background: #059669;
+}
+.hello-message {
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+  color: #2563eb;
 }
 </style> 
