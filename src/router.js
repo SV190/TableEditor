@@ -35,27 +35,34 @@ const router = createRouter({
 })
 
 // Навигационные хуки
-router.beforeEach((to, from, next) => {
-  const { initAuth, requireAuth, requireAdmin } = useAuth()
-  
-  // Инициализируем авторизацию при каждом переходе
-  initAuth()
+router.beforeEach(async (to, from, next) => {
+  const { user, isAuthenticated } = useAuth()
   
   // Проверяем требования маршрута
   if (to.meta.requiresAuth && to.meta.requiresAdmin) {
-    requireAdmin(to, from, next)
+    if (!isAuthenticated.value) {
+      next('/login')
+    } else if (!user.value?.is_admin) {
+      next('/')
+    } else {
+      next()
+    }
   } else if (to.meta.requiresAuth) {
-    requireAuth(to, from, next)
+    if (!isAuthenticated.value) {
+      next('/login')
+    } else {
+      next()
+    }
   } else if (to.meta.requiresGuest) {
     // Если пользователь уже авторизован, перенаправляем на главную
-    const { isAuthenticated } = useAuth()
     if (isAuthenticated.value) {
       next('/')
     } else {
       next()
     }
   } else {
-    next()
+    // Для всех остальных маршрутов перенаправляем на главную
+    next('/')
   }
 })
 

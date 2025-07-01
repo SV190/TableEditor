@@ -1300,13 +1300,18 @@ const moveFile = (file) => {
 }
 
 onMounted(async () => {
-  isDropboxAuthenticated.value = await dropboxStorage.initialize()
-  if (isDropboxAuthenticated.value) {
-    storageType.value = 'dropbox'
-    await loadDropboxFolders()
-    await loadDropboxFiles()
-    await loadStorageInfo()
-  }
+  // Временно отключаем Dropbox для отладки
+  isDropboxAuthenticated.value = false
+  storageType.value = 'local'
+  
+  // TODO: Восстановить Dropbox функциональность после настройки
+  // isDropboxAuthenticated.value = await dropboxStorage.initialize()
+  // if (isDropboxAuthenticated.value) {
+  //   storageType.value = 'dropbox'
+  //   await loadDropboxFolders()
+  //   await loadDropboxFiles()
+  //   await loadStorageInfo()
+  // }
   
   // Обработчик клика вне контекстного меню
   document.addEventListener('click', () => {

@@ -99,7 +99,7 @@
             <div class="users-table">
               <div class="table-header">
                 <div class="table-cell">ID</div>
-                <div class="table-cell">Логин</div>
+                <div class="table-cell">Email</div>
                 <div class="table-cell">Роль</div>
                 <div class="table-cell">Статус</div>
                 <div class="table-cell">Действия</div>
@@ -107,7 +107,7 @@
               
               <div v-for="user in users" :key="user.id" class="table-row">
                 <div class="table-cell">{{ user.id }}</div>
-                <div class="table-cell">{{ user.username }}</div>
+                <div class="table-cell">{{ user.email }}</div>
                 <div class="table-cell">
                   <span :class="['role-badge', user.is_admin ? 'admin' : 'user']">
                     {{ user.is_admin ? 'Админ' : 'Пользователь' }}
@@ -165,12 +165,12 @@
         
         <form @submit.prevent="createUser" class="modal-form">
           <div class="form-group">
-            <label for="newUsername">Логин</label>
+            <label for="newEmail">Email</label>
             <input 
-              id="newUsername"
-              v-model="newUser.username" 
-              type="text" 
-              placeholder="Введите логин"
+              id="newEmail"
+              v-model="newUser.email" 
+              type="email" 
+              placeholder="Введите email"
               required
             />
           </div>
@@ -230,24 +230,17 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '../composables/useAuth.js'
 import { useRouter } from 'vue-router'
+import { supabase } from '../utils/supabase.js'
 
 const router = useRouter()
 const { user, logout: authLogout } = useAuth()
-
-// Определяем базовый URL API в зависимости от окружения
-const getApiBaseUrl = () => {
-  if (import.meta.env.DEV) {
-    return 'http://localhost:3000/api'
-  }
-  return '/api'
-}
 
 const users = ref([])
 const isLoading = ref(false)
 const createError = ref('')
 const createSuccess = ref(false)
 const showCreateModal = ref(false)
-const newUser = ref({ username: '', password: '', is_admin: false })
+const newUser = ref({ email: '', password: '', is_admin: false })
 
 // Вычисляемые свойства для статистики
 const activeUsers = computed(() => users.value.filter(u => !u.is_blocked).length)
@@ -255,15 +248,19 @@ const blockedUsers = computed(() => users.value.filter(u => u.is_blocked).length
 
 const fetchUsers = async () => {
   try {
-    const token = localStorage.getItem('user_token')
-    const res = await fetch(`${getApiBaseUrl()}/users`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (!res.ok) throw new Error('Ошибка получения пользователей')
-    users.value = await res.json()
+    isLoading.value = true
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    users.value = data || []
   } catch (e) {
     console.error('Error fetching users:', e)
     users.value = []
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -277,21 +274,28 @@ const createUser = async () => {
   createSuccess.value = false
   isLoading.value = true
   try {
-    const token = localStorage.getItem('user_token')
-    const res = await fetch(`${getApiBaseUrl()}/users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(newUser.value)
+    // Создаем пользователя через Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: newUser.value.email,
+      password: newUser.value.password
     })
-    if (!res.ok) {
-      const data = await res.json()
-      throw new Error(data.error || 'Ошибка создания')
-    }
+    
+    if (authError) throw authError
+    
+    // Добавляем пользователя в таблицу users
+    const { error: dbError } = await supabase
+      .from('users')
+      .insert({
+        id: authData.user.id,
+        email: newUser.value.email,
+        is_admin: newUser.value.is_admin,
+        created_at: new Date().toISOString()
+      })
+    
+    if (dbError) throw dbError
+    
     createSuccess.value = true
-    newUser.value = { username: '', password: '', is_admin: false }
+    newUser.value = { email: '', password: '', is_admin: false }
     showCreateModal.value = false
     await fetchUsers()
   } catch (e) {
@@ -304,18 +308,12 @@ const createUser = async () => {
 const toggleBlock = async (user) => {
   isLoading.value = true
   try {
-    const token = localStorage.getItem('user_token')
-    await fetch(`${getApiBaseUrl()}/block-user`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ 
-        userId: user.id,
-        block: !user.is_blocked 
-      })
-    })
+    const { error } = await supabase
+      .from('users')
+      .update({ is_blocked: !user.is_blocked })
+      .eq('id', user.id)
+    
+    if (error) throw error
     await fetchUsers()
   } catch (e) {
     console.error('Ошибка блокировки:', e)

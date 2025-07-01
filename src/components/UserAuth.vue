@@ -14,17 +14,17 @@
         
         <form @submit.prevent="handleLogin" class="auth-form">
           <div class="form-group">
-            <label for="username">Логин</label>
+            <label for="email">Email</label>
             <div class="input-wrapper">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
               </svg>
               <input 
-                id="username"
-                v-model="username" 
-                type="text" 
-                placeholder="Введите логин"
+                id="email"
+                v-model="email" 
+                type="email" 
+                placeholder="Введите email"
                 required
                 :disabled="isLoading"
               />
@@ -74,7 +74,7 @@ import { ref } from 'vue'
 import { useAuth } from '../composables/useAuth.js'
 
 const { login, isLoading } = useAuth()
-const username = ref('')
+const email = ref('')
 const password = ref('')
 const error = ref('')
 
@@ -82,7 +82,7 @@ const handleLogin = async () => {
   error.value = ''
   
   try {
-    await login(username.value, password.value)
+    await login(email.value, password.value)
     // После успешного входа роутер автоматически перенаправит на главную страницу
   } catch (err) {
     error.value = err.message

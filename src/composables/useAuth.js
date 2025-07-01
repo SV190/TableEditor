@@ -1,9 +1,11 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { supabase } from '../utils/supabase'
 
 const user = ref(null)
 const isAuthenticated = ref(false)
 const isLoading = ref(false)
+const error = ref(null)
 
 // Определяем базовый URL API в зависимости от окружения
 const getApiBaseUrl = () => {
@@ -12,6 +14,25 @@ const getApiBaseUrl = () => {
   }
   return '/api'
 }
+
+// Проверка текущей сессии при инициализации
+supabase.auth.getUser().then(({ data, error: err }) => {
+  if (data?.user) {
+    user.value = data.user
+    isAuthenticated.value = true
+  }
+})
+
+// Слушаем изменения состояния аутентификации
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session?.user) {
+    user.value = session.user
+    isAuthenticated.value = true
+  } else if (event === 'SIGNED_OUT') {
+    user.value = null
+    isAuthenticated.value = false
+  }
+})
 
 export function useAuth() {
   const router = useRouter()
@@ -36,70 +57,56 @@ export function useAuth() {
     }
   }
 
-  // Вход в систему
-  const login = async (username, password) => {
+  // Логин
+  const login = async (email, password) => {
     isLoading.value = true
+    error.value = null
+    
+    console.log('Попытка входа с:', { email, password: password ? '***' : 'undefined' })
     
     try {
-      const apiUrl = `${getApiBaseUrl()}/login`;
-      console.log('Attempting login to:', apiUrl);
-      console.log('Login data:', { username, password: '***' });
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email, password })
       
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, password })
-      })
-      
-      console.log('Login response status:', response.status);
-      console.log('Login response headers:', response.headers);
-      
-      const data = await response.json()
-      console.log('Login response data:', data);
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Ошибка входа')
+      if (err) {
+        console.error('Ошибка входа:', err)
+        error.value = err.message
+        user.value = null
+      } else {
+        console.log('Успешный вход:', data.user)
+        user.value = data.user
+        isAuthenticated.value = true
       }
-      
-      // Сохраняем токен и информацию о пользователе
-      localStorage.setItem('user_token', data.token)
-      localStorage.setItem('user_info', JSON.stringify({
-        id: data.user.id,
-        username: data.user.username,
-        is_admin: data.user.is_admin
-      }))
-      
-      user.value = {
-        id: data.user.id,
-        username: data.user.username,
-        is_admin: data.user.is_admin
-      }
-      isAuthenticated.value = true
-      
-      console.log('Login successful, user:', user.value);
-      
-      // Перенаправляем на главную страницу
-      router.push('/')
-      
-      return data.user
-      
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error
-    } finally {
-      isLoading.value = false
+    } catch (e) {
+      console.error('Исключение при входе:', e)
+      error.value = e.message
+      user.value = null
     }
+    
+    isLoading.value = false
+    return { user: user.value, error: error.value }
   }
 
-  // Выход из системы
-  const logout = () => {
-    localStorage.removeItem('user_token')
-    localStorage.removeItem('user_info')
+  // Регистрация
+  const register = async (email, password) => {
+    isLoading.value = true
+    error.value = null
+    const { data, error: err } = await supabase.auth.signUp({ email, password })
+    if (err) {
+      error.value = err.message
+      user.value = null
+    } else {
+      user.value = data.user
+      isAuthenticated.value = true
+    }
+    isLoading.value = false
+    return { user: user.value, error: error.value }
+  }
+
+  // Выход
+  const logout = async () => {
+    await supabase.auth.signOut()
     user.value = null
     isAuthenticated.value = false
-    router.push('/login')
   }
 
   // Проверка авторизации для защищенных маршрутов
@@ -156,8 +163,10 @@ export function useAuth() {
     isAuthenticated: computed(() => isAuthenticated.value),
     isAdmin,
     isLoading: computed(() => isLoading.value),
+    error: computed(() => error.value),
     initAuth,
     login,
+    register,
     logout,
     requireAuth,
     requireAdmin,

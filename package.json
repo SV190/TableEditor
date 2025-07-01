@@ -21,6 +21,7 @@
     "vercel-build": "npm run build"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.50.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dropbox": "^10.34.0",
@@ -31,6 +32,7 @@
     "jsonwebtoken": "^9.0.2",
     "luckyexcel": "^1.0.1",
     "node-fetch": "^2.7.0",
+    "pg": "^8.16.3",
     "serverless-http": "^3.2.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.6",
