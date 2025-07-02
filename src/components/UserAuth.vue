@@ -86,7 +86,7 @@ const helloMessage = ref('')
 async function callHello() {
   helloMessage.value = 'Загрузка...'
   try {
-    const res = await fetch('/api/hello')
+    const res = await fetch('/.netlify/functions/hello')
     if (!res.ok) throw new Error('Ошибка запроса: ' + res.status)
     const data = await res.json()
     helloMessage.value = data.message
